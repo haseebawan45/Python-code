@@ -1,0 +1,79 @@
+import numpy as np
+import matplotlib.pyplot as plt
+from matplotlib.animation import FuncAnimation
+from sklearn.datasets import make_blobs
+from collections import Counter
+
+# Generate synthetic dataset
+X, y = make_blobs(n_samples=150, centers=3, random_state=42, cluster_std=1.5)
+colors = ['red', 'blue', 'green']
+class_names = ['Class 0', 'Class 1', 'Class 2']
+
+# Function to compute Euclidean distance
+def euclidean_distance(x1, x2):
+    return np.sqrt(np.sum((x1 - x2) ** 2))
+
+# Function to predict using KNN
+def knn_predict(X_train, y_train, test_point, k):
+    distances = [euclidean_distance(test_point, x_train) for x_train in X_train]
+    k_indices = np.argsort(distances)[:k]
+    k_nearest_labels = [y_train[i] for i in k_indices]
+    most_common = Counter(k_nearest_labels).most_common(1)
+    return most_common[0][0], k_indices
+
+# Initialize figure
+fig, ax = plt.subplots(figsize=(8, 8))
+test_point = np.array([2, 4])  # Define a test point
+k = 5  # Number of neighbors
+
+# Plot the dataset
+for i, color in enumerate(colors):
+    ax.scatter(X[y == i][:, 0], X[y == i][:, 1], c=color, label=class_names[i], alpha=0.7, s=50)
+
+# Add the test point
+ax.scatter(test_point[0], test_point[1], c='black', label='Test Point', s=100, edgecolor='white', zorder=5)
+ax.legend()
+ax.set_title('KNN Animation - Finding Neighbors')
+ax.grid(True)
+
+# Animation variables
+distances = [euclidean_distance(test_point, x_train) for x_train in X]
+sorted_indices = np.argsort(distances)
+highlighted_points = []
+connecting_lines = []
+predicted_class = None
+
+# Animation update function
+def update(frame):
+    global highlighted_points, connecting_lines, predicted_class
+
+    # Clear previous highlights
+    for point in highlighted_points:
+        point.remove()
+    for line in connecting_lines:
+        line.remove()
+
+    highlighted_points = []
+    connecting_lines = []
+
+    # Highlight current neighbor
+    idx = sorted_indices[frame]
+    highlighted_point = ax.scatter(X[idx, 0], X[idx, 1], c='yellow', edgecolor='black', s=100, zorder=6)
+    highlighted_points.append(highlighted_point)
+
+    # Draw a line connecting to the test point
+    line, = ax.plot([test_point[0], X[idx, 0]], [test_point[1], X[idx, 1]], 'k--', linewidth=1, zorder=4)
+    connecting_lines.append(line)
+
+    # Update title for the final frame
+    if frame == k - 1:
+        _, k_indices = knn_predict(X, y, test_point, k)
+        k_labels = [y[i] for i in k_indices]
+        predicted_class = Counter(k_labels).most_common(1)[0][0]
+        ax.set_title(f"KNN Animation - Predicted Class: {class_names[predicted_class]}")
+
+# Create animation
+ani = FuncAnimation(fig, update, frames=k, interval=1000, repeat=False)
+
+# Show plot
+plt.show()
